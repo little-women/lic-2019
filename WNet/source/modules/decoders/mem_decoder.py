@@ -2,23 +2,29 @@
 # @Author: Wei Li
 # @Date:   2019-04-23 21:04:32
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-23 21:07:25
+# @Last Modified time: 2019-04-24 21:44:04
 
+import torch
+import torch.nn as nn
+
+from source.modules.embedder import Embedder
+from source.modules.attention import Attention
 from source.modules.attr import AttrProxy
 
 
 class DecoderMemNN(nn.Module):
 
-    def __init__(self, vocab, embedding_dim, hop, dropout, unk_mask):
+    def __init__(self, vocab, embedding_dim, hop, dropout, unk_mask, padding_idx):
         super(DecoderMemNN, self).__init__()
         self.num_vocab = vocab
         self.max_hops = hop
         self.embedding_dim = embedding_dim
         self.dropout = dropout
         self.unk_mask = unk_mask
+        self.padding_idx = padding_idx
         for hop in range(self.max_hops + 1):
-            C = nn.Embedding(self.num_vocab, embedding_dim,
-                             padding_idx=PAD_token)
+            C = Embedder(self.num_vocab, embedding_dim,
+                         padding_idx=self.padding_idx)
             C.weight.data.normal_(0, 0.1)
             self.add_module("C_{}".format(hop), C)
         self.C = AttrProxy(self, "C_")

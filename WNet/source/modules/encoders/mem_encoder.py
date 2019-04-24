@@ -2,65 +2,75 @@
 # @Author: Wei Li
 # @Date:   2019-04-23 21:03:41
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-23 21:07:32
+# @Last Modified time: 2019-04-24 19:49:13
 
+import torch
+import torch.nn as nn
+
+from source.modules.embedder import Embedder
+from source.modules.attention import Attention
 from source.modules.attr import AttrProxy
 
 
 class EncoderMemNN(nn.Module):
 
-    def __init__(self, vocab, embedding_dim, hop, dropout, unk_mask):
+    def __init__(self, vocab, hidden_size, hop=1, attn_mode='dot', padding_idx=None):
         super(EncoderMemNN, self).__init__()
         self.num_vocab = vocab
         self.max_hops = hop
-        self.embedding_dim = embedding_dim
-        self.dropout = dropout
-        self.unk_mask = unk_mask
+        self.hidden_size = hidden_size
+        self.attn_mode = attn_mode
+        self.padding_idx = padding_idx
+
         for hop in range(self.max_hops + 1):
-            C = nn.Embedding(self.num_vocab, embedding_dim,
-                             padding_idx=PAD_token)
+            C = Embedder(self.num_vocab, self.hidden_size,
+                         padding_idx=self.padding_idx)
             C.weight.data.normal_(0, 0.1)
             self.add_module("C_{}".format(hop), C)
+
+        for hop in range(self.max_hops):
+            A = Attention(query_size=self.hidden_size,
+                          memory_size=self.hidden_size,
+                          hidden_size=self.hidden_size,
+                          mode=self.attn_mode,
+                          return_attn_only=True)
+            self.add_module("A_{}".format(hop), A)
+
         self.C = AttrProxy(self, "C_")
+        self.A = AttrProxy(self, "A_")
         self.softmax = nn.Softmax(dim=1)
 
-    def get_state(self, bsz):
-        """Get cell states and hidden states."""
-        if USE_CUDA:
-            return Variable(torch.zeros(bsz, self.embedding_dim)).cuda()
+    def forward(self, inputs, enc_hidden):
+        """
+        enc_hidden: batch_size, query_size
+        inputs: batch_size, memory_length, max_len
+        lengths: batch_size, memory_length
+
+        Return: batch_size, memory_size
+
+        """
+        if isinstance(inputs, tuple):
+            inputs, lengths = inputs
         else:
-            return Variable(torch.zeros(bsz, self.embedding_dim))
+            inputs, lengths = inputs, None
 
-    def forward(self, story):
-        story = story.transpose(0, 1)
-        story_size = story.size()  # b * m * 3
-        if self.unk_mask:
-            if(self.training):
-                ones = np.ones((story_size[0], story_size[1], story_size[2]))
-                rand_mask = np.random.binomial(
-                    [np.ones((story_size[0], story_size[1]))], 1 - self.dropout)[0]
-                ones[:, :, 0] = ones[:, :, 0] * rand_mask
-                a = Variable(torch.Tensor(ones))
-                if USE_CUDA:
-                    a = a.cuda()
-                story = story * a.long()
-        u = [self.get_state(story.size(0))]
+        u = [enc_hidden]
         for hop in range(self.max_hops):
-            embed_A = self.C[hop](story.contiguous().view(
-                story.size(0), -1).long())  # b * (m * s) * e
-            embed_A = embed_A.view(
-                story_size + (embed_A.size(-1),))  # b * m * s * e
-            m_A = torch.sum(embed_A, 2).squeeze(2)  # b * m * e
+            embed_A = self.C[hop](
+                inputs.contiguous().view(inputs.size(0), -1).long())
+            embed_A = embed_A.view(inputs.size() + (embed_A.size(-1),))
+            # batch_size, memory_length, embedding_dim
+            m_A = torch.sum(embed_A, 2).squeeze(2)
 
-            u_temp = u[-1].unsqueeze(1).expand_as(m_A)
-            prob = self.softmax(torch.sum(m_A * u_temp, 2))
+            attn = self.A[hop](query=u[-1].unsqueeze(1),
+                               memory=m_A, mask=lengths.eq(0))
+
             embed_C = self.C[
-                hop + 1](story.contiguous().view(story.size(0), -1).long())
-            embed_C = embed_C.view(story_size + (embed_C.size(-1),))
+                hop + 1](inputs.contiguous().view(inputs.size(0), -1).long())
+            embed_C = embed_C.view(inputs.size() + (embed_C.size(-1),))
             m_C = torch.sum(embed_C, 2).squeeze(2)
 
-            prob = prob.unsqueeze(2).expand_as(m_C)
-            o_k = torch.sum(m_C * prob, 1)
+            o_k = torch.bmm(attn, m_C).squeeze(1)
             u_k = u[-1] + o_k
             u.append(u_k)
         return u_k
