@@ -67,14 +67,8 @@ def model_config():
     train_arg.add_argument("--pretrain_epoch", type=int, default=5)
     train_arg.add_argument("--lr_decay", type=float, default=None)
     train_arg.add_argument("--use_embed", type=str2bool, default=True)
-    train_arg.add_argument("--use_bow", type=str2bool, default=True)
-    train_arg.add_argument("--use_dssm", type=str2bool, default=False)
-    train_arg.add_argument("--use_pg", type=str2bool, default=False)
-    train_arg.add_argument("--use_gs", type=str2bool, default=False)
-    train_arg.add_argument("--use_kd", type=str2bool, default=False)
     train_arg.add_argument("--weight_control", type=str2bool, default=False)
     train_arg.add_argument("--decode_concat", type=str2bool, default=False)
-    train_arg.add_argument("--use_posterior", type=str2bool, default=True)
 
     # Geneation
     gen_arg = parser.add_argument_group("Generation")
@@ -129,22 +123,10 @@ def main():
     test_iter = corpus.create_batches(
         config.batch_size, "test", shuffle=False, device=device)
     # Model definition
-    # model = KnowledgeSeq2Seq(src_vocab_size=corpus.SRC.vocab_size,
-    #                          tgt_vocab_size=corpus.TGT.vocab_size,
-    #                          embed_size=config.embed_size, hidden_size=config.hidden_size,
-    #                          padding_idx=corpus.padding_idx,
-    #                          num_layers=config.num_layers, bidirectional=config.bidirectional,
-    #                          attn_mode=config.attn, with_bridge=config.with_bridge,
-    #                          tie_embedding=config.tie_embedding, dropout=config.dropout,
-    #                          use_gpu=config.use_gpu,
-    #                          use_bow=config.use_bow, use_dssm=config.use_dssm,
-    #                          use_pg=config.use_pg, use_gs=config.use_gs,
-    #                          pretrain_epoch=config.pretrain_epoch,
-    #                          use_posterior=config.use_posterior,
-    #                          weight_control=config.weight_control,
-    #                          concat=config.decode_concat)
     model = MemNet(vocab_size=corpus.SRC.vocab_size, embed_units=config.embed_size,
-                   hidden_size=config.hidden_size, padding_idx=corpus.padding_idx, num_layers=2, use_gpu=config.use_gpu)
+                   hidden_size=config.hidden_size, padding_idx=corpus.padding_idx,
+                   max_hop=1,
+                   num_layers=2, use_gpu=config.use_gpu)
     model_name = model.__class__.__name__
     # Generator definition
     generator = TopKGenerator(model=model,

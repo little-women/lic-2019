@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-23 21:04:32
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-24 21:44:04
+# @Last Modified time: 2019-04-25 12:04:37
 
 import torch
 import torch.nn as nn
@@ -48,7 +48,7 @@ class DecoderMemNN(nn.Module):
         self.m_story = []
         for hop in range(self.max_hops):
             # .long()) # b * (m * s) * e
-            embed_A = self.C[hop](story.contiguous().view(story.size(0), -1))
+            embed_A = self.C[hop](story.contiguous().view(story.size(0), -1).long())
             embed_A = embed_A.view(
                 story_size + (embed_A.size(-1),))  # b * m * s * e
             embed_A = torch.sum(embed_A, 2).squeeze(2)  # b * m * e

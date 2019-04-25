@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-24 10:29:03
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-24 21:19:47
+# @Last Modified time: 2019-04-25 12:10:37
 
 import argparse
 
@@ -39,6 +39,12 @@ def main():
         print(u)
     elif config.model == 'DecoderMemNN':
         model = globals()[config.model](10000, 300, 3, 0.2, False, 1)
+        story = torch.ones(3, 10, 7)
+        model.load_memory(story)
+        for m in model.m_story:
+            print(m.size())
+
+        decoder_input = Variable(torch.LongTensor([2] * 3))
     print(model)
 
 

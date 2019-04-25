@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-19 11:49:16
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-24 19:49:32
+# @Last Modified time: 2019-04-25 16:31:38
 
 
 import torch
@@ -68,7 +68,12 @@ class MemNet(BaseModel):
         self.decoder = RNNDecoder(input_size=self.embed_units,
                                   hidden_size=self.hidden_size,
                                   output_size=self.vocab_size,
-                                  embedder=dec_embedder)
+                                  embedder=dec_embedder,
+                                  attn_mode=self.attn_mode,
+                                  attn_hidden_size=self.hidden_size,
+                                  memory_size=self.hidden_size,
+                                  feature_size=None,
+                                  dropout=self.dropout)
 
         self.softmax = nn.Softmax(dim=-1)
 
@@ -97,7 +102,10 @@ class MemNet(BaseModel):
 
         u = self.mem_encoder(cue_inputs, enc_hidden[-1])
 
-        dec_init_state = self.decoder.initialize_state(hidden=u.unsqueeze(0))
+        dec_init_state = self.decoder.initialize_state(
+            hidden=u.unsqueeze(0),
+            attn_memory=enc_outputs if self.attn_mode else None,
+            memory_lengths=lengths if self.attn_mode else None)
 
         return outputs, dec_init_state
 
