@@ -2,25 +2,23 @@
 # @Author: Wei Li
 # @Date:   2019-04-23 21:04:32
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-26 11:57:00
+# @Last Modified time: 2019-04-26 15:12:54
 
 import torch
 import torch.nn as nn
 
 from source.modules.embedder import Embedder
-from source.modules.attention import Attention
 from source.modules.attr import AttrProxy
 
 
 class DecoderMemNN(nn.Module):
 
-    def __init__(self, vocab, embedding_dim, hop, dropout, unk_mask, padding_idx):
+    def __init__(self, vocab, embedding_dim, hop, dropout, padding_idx):
         super(DecoderMemNN, self).__init__()
         self.num_vocab = vocab
         self.max_hops = hop
         self.embedding_dim = embedding_dim
         self.dropout = dropout
-        self.unk_mask = unk_mask
         self.padding_idx = padding_idx
         for hop in range(self.max_hops + 1):
             C = Embedder(self.num_vocab, embedding_dim,
@@ -35,20 +33,11 @@ class DecoderMemNN(nn.Module):
 
     def load_memory(self, story):
         story_size = story.size()  # b * m * 3
-        if self.unk_mask:
-            if(self.training):
-                ones = np.ones((story_size[0], story_size[1], story_size[2]))
-                rand_mask = np.random.binomial(
-                    [np.ones((story_size[0], story_size[1]))], 1 - self.dropout)[0]
-                ones[:, :, 0] = ones[:, :, 0] * rand_mask
-                a = Variable(torch.Tensor(ones))
-                if USE_CUDA:
-                    a = a.cuda()
-                story = story * a.long()
         self.m_story = []
         for hop in range(self.max_hops):
             # .long()) # b * (m * s) * e
-            embed_A = self.C[hop](story.contiguous().view(story.size(0), -1).long())
+            embed_A = self.C[hop](
+                story.contiguous().view(story.size(0), -1).long())
             embed_A = embed_A.view(
                 story_size + (embed_A.size(-1),))  # b * m * s * e
             embed_A = torch.sum(embed_A, 2).squeeze(2)  # b * m * e

@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-################################################################################
+##########################################################################
 #
 # Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
 #
-################################################################################
+##########################################################################
 """
 File: source/decoders/rnn_decoder.py
 """
@@ -21,6 +21,7 @@ class RNNDecoder(nn.Module):
     """
     A GRU recurrent neural network decoder.
     """
+
     def __init__(self,
                  input_size,
                  hidden_size,

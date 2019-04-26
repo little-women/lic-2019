@@ -1,26 +1,17 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-######################################################################
-#
-# Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
-#
-# @file network.py
-#
-######################################################################
-"""
-File: network.py
-"""
+# @Author: Wei Li
+# @Date:   2019-04-24 16:59:34
+# @Last Modified by:   liwei
+# @Last Modified time: 2019-04-26 16:02:50
+
 
 import os
-import sys
 import json
-import shutil
 import logging
 import argparse
 import torch
-from datetime import datetime
 
-from source.models.memnet import *
+from source.models.memnet import MemNet
 from source.inputters.corpus import KnowledgeCorpus
 from source.utils.engine import Trainer
 from source.utils.generator import TopKGenerator
@@ -44,6 +35,7 @@ def model_config():
 
     # Network
     net_arg = parser.add_argument_group("Network")
+    net_arg.add_argument("--model", type=str, default='MemNet')
     net_arg.add_argument("--embed_size", type=int, default=300)
     net_arg.add_argument("--hidden_size", type=int, default=800)
     net_arg.add_argument("--bidirectional", type=str2bool, default=True)
@@ -51,6 +43,7 @@ def model_config():
     net_arg.add_argument("--min_len", type=int, default=1)
     net_arg.add_argument("--max_len", type=int, default=500)
     net_arg.add_argument("--num_layers", type=int, default=1)
+    net_arg.add_argument("--max_hop", type=int, default=1)
     net_arg.add_argument("--attn", type=str, default='dot',
                          choices=['none', 'mlp', 'dot', 'general'])
     net_arg.add_argument("--share_vocab", type=str2bool, default=True)
@@ -67,8 +60,7 @@ def model_config():
     train_arg.add_argument("--pretrain_epoch", type=int, default=5)
     train_arg.add_argument("--lr_decay", type=float, default=None)
     train_arg.add_argument("--use_embed", type=str2bool, default=True)
-    train_arg.add_argument("--weight_control", type=str2bool, default=False)
-    train_arg.add_argument("--decode_concat", type=str2bool, default=False)
+    train_arg.add_argument("--weight_control", type=str2bool, default=True)
 
     # Geneation
     gen_arg = parser.add_argument_group("Generation")
@@ -86,11 +78,9 @@ def model_config():
     misc_arg.add_argument("--valid_steps", type=int, default=200)
     misc_arg.add_argument("--batch_size", type=int, default=128)
     misc_arg.add_argument("--ckpt", type=str)
-    #misc_arg.add_argument("--ckpt", type=str, default="models/best.model")
     misc_arg.add_argument("--check", action="store_true")
     misc_arg.add_argument("--test", action="store_true")
     misc_arg.add_argument("--interact", action="store_true")
-    #misc_arg.add_argument("--interact", type=str2bool, default=True)
 
     config = parser.parse_args()
 
@@ -108,10 +98,14 @@ def main():
     device = config.gpu
     torch.cuda.set_device(device)
     # Data definition
-    corpus = KnowledgeCorpus(data_dir=config.data_dir, data_prefix=config.data_prefix,
-                             min_freq=0, max_vocab_size=config.max_vocab_size,
-                             min_len=config.min_len, max_len=config.max_len,
-                             embed_file=config.embed_file, with_label=config.with_label,
+    corpus = KnowledgeCorpus(data_dir=config.data_dir,
+                             data_prefix=config.data_prefix,
+                             min_freq=0,
+                             max_vocab_size=config.max_vocab_size,
+                             min_len=config.min_len,
+                             max_len=config.max_len,
+                             embed_file=config.embed_file,
+                             with_label=config.with_label,
                              share_vocab=config.share_vocab)
     corpus.load()
     if config.test and config.ckpt:
@@ -122,17 +116,30 @@ def main():
         config.batch_size, "valid", shuffle=False, device=device)
     test_iter = corpus.create_batches(
         config.batch_size, "test", shuffle=False, device=device)
+
     # Model definition
-    model = MemNet(vocab_size=corpus.SRC.vocab_size, embed_units=config.embed_size,
-                   hidden_size=config.hidden_size, padding_idx=corpus.padding_idx,
-                   max_hop=1,
-                   num_layers=2, use_gpu=config.use_gpu)
-    model_name = model.__class__.__name__
+    if config.model == 'Mem2Seq':
+        model = globals()[config.model]()
+    elif config.model == 'MemNet':
+        model = globals()[config.model](vocab_size=corpus.SRC.vocab_size,
+                                        embed_units=config.embed_size,
+                                        hidden_size=config.hidden_size,
+                                        padding_idx=corpus.padding_idx,
+                                        max_hop=config.max_hop,
+                                        num_layers=config.num_layers,
+                                        attn_mode=config.attn,
+                                        dropout=config.dropout,
+                                        use_gpu=config.use_gpu)
+
     # Generator definition
     generator = TopKGenerator(model=model,
-                              src_field=corpus.SRC, tgt_field=corpus.TGT, cue_field=corpus.CUE,
-                              max_length=config.max_dec_len, ignore_unk=config.ignore_unk,
-                              length_average=config.length_average, use_gpu=config.use_gpu)
+                              src_field=corpus.SRC,
+                              tgt_field=corpus.TGT,
+                              cue_field=corpus.CUE,
+                              max_length=config.max_dec_len,
+                              ignore_unk=config.ignore_unk,
+                              length_average=config.length_average,
+                              use_gpu=config.use_gpu)
     # Interactive generation testing
     if config.interact and config.ckpt:
         model.load(config.ckpt)
@@ -163,9 +170,8 @@ def main():
                                                                       factor=config.lr_decay, patience=1, verbose=True, min_lr=1e-5)
         else:
             lr_scheduler = None
+
         # Save directory
-        date_str, time_str = datetime.now().strftime("%Y%m%d-%H%M%S").split("-")
-        result_str = "{}-{}".format(model_name, time_str)
         if not os.path.exists(config.save_dir):
             os.makedirs(config.save_dir)
         # Logger definition
@@ -181,12 +187,20 @@ def main():
         logger.info(model)
         # Train
         logger.info("Training starts ...")
-        trainer = Trainer(model=model, optimizer=optimizer, train_iter=train_iter,
-                          valid_iter=valid_iter, logger=logger, generator=generator,
-                          valid_metric_name="-loss", num_epochs=config.num_epochs,
-                          save_dir=config.save_dir, log_steps=config.log_steps,
-                          valid_steps=config.valid_steps, grad_clip=config.grad_clip,
-                          lr_scheduler=lr_scheduler, save_summary=True)
+        trainer = Trainer(model=model,
+                          optimizer=optimizer,
+                          train_iter=train_iter,
+                          valid_iter=valid_iter,
+                          logger=logger,
+                          generator=generator,
+                          valid_metric_name="-loss",
+                          num_epochs=config.num_epochs,
+                          save_dir=config.save_dir,
+                          log_steps=config.log_steps,
+                          valid_steps=config.valid_steps,
+                          grad_clip=config.grad_clip,
+                          lr_scheduler=lr_scheduler,
+                          save_summary=True)
         if config.ckpt is not None:
             trainer.load(file_prefix=config.ckpt)
         trainer.train()

@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-23 21:03:41
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-26 12:04:41
+# @Last Modified time: 2019-04-26 15:35:30
 
 import torch
 import torch.nn as nn
@@ -14,7 +14,8 @@ from source.modules.attr import AttrProxy
 
 class EncoderMemNN(nn.Module):
 
-    def __init__(self, vocab, hidden_size, hop=1, attn_mode='dot', padding_idx=None):
+    def __init__(self, vocab, hidden_size, hop=1,
+                 attn_mode='dot', padding_idx=None):
         super(EncoderMemNN, self).__init__()
         self.num_vocab = vocab
         self.max_hops = hop
