@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-19 11:49:16
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-25 16:31:38
+# @Last Modified time: 2019-04-26 12:00:03
 
 
 import torch
@@ -14,7 +14,6 @@ from source.modules.embedder import Embedder
 from source.modules.encoders.mem_encoder import EncoderMemNN
 from source.modules.encoders.rnn_encoder import RNNEncoder
 from source.modules.decoders.rnn_decoder import RNNDecoder
-from source.modules.attention import Attention
 from source.utils.criterions import NLLLoss
 from source.utils.metrics import accuracy
 from source.utils.misc import Pack
@@ -22,16 +21,13 @@ from source.utils.misc import Pack
 
 class MemNet(BaseModel):
     """
-    symbols: vocabulary size.
-    num_entities: entitiy vocabulary size.
-    num_relations", 44, "relation size.
-    embed_units", 300, "Size of word embedding.
-    trans_units", 100, "Size of trans embedding.
+
     """
 
-    def __init__(self, vocab_size, embed_units,
-                 hidden_size, padding_idx=None,  num_layers=1, max_hop=3,
-                 bidirectional=True, attn_mode='mlp', dropout=0.0, use_gpu=False):
+    def __init__(self, vocab_size, embed_units, hidden_size,
+                 padding_idx=None, num_layers=1, max_hop=3,
+                 bidirectional=True, attn_mode='mlp', dropout=0.0,
+                 use_gpu=False):
         super(MemNet, self).__init__()
 
         self.vocab_size = vocab_size
@@ -82,7 +78,8 @@ class MemNet(BaseModel):
             self.weight[self.padding_idx] = 0
         else:
             self.weight = None
-        self.nll_loss = NLLLoss(weight=self.weight, ignore_index=self.padding_idx,
+        self.nll_loss = NLLLoss(weight=self.weight,
+                                ignore_index=self.padding_idx,
                                 reduction='mean')
 
         if self.use_gpu:
@@ -144,7 +141,8 @@ class MemNet(BaseModel):
         metrics.add(loss=loss)
         return metrics, scores
 
-    def iterate(self, inputs, optimizer=None, grad_clip=None, is_training=True, epoch=-1):
+    def iterate(self, inputs, optimizer=None, grad_clip=None,
+                is_training=True, epoch=-1):
         """
         iterate
         """

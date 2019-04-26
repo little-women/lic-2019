@@ -2,9 +2,10 @@
 # @Author: Wei Li
 # @Date:   2019-04-24 10:29:03
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-25 12:10:37
+# @Last Modified time: 2019-04-26 12:05:14
 
 import argparse
+from torch.autograd import Variable
 
 from source.models.memnet import *
 from source.modules.encoders.mem_encoder import EncoderMemNN
@@ -35,8 +36,8 @@ def main():
         lengths = torch.tensor([[2, 3, 2, 0, 0, 0, 0, 0, 0, 0], [
                                2, 3, 2, 4, 5, 0, 0, 0, 0, 0], [1, 3, 2, 5, 0, 0, 0, 0, 0, 0]])
         story = torch.ones(3, 10, 7)
-        u = model.forward((story, lengths), enc_hidden)
-        print(u)
+        u, attns = model.forward((story, lengths), enc_hidden)
+        print(attns)
     elif config.model == 'DecoderMemNN':
         model = globals()[config.model](10000, 300, 3, 0.2, False, 1)
         story = torch.ones(3, 10, 7)
@@ -45,6 +46,11 @@ def main():
             print(m.size())
 
         decoder_input = Variable(torch.LongTensor([2] * 3))
+        last_hidden = Variable(torch.rand(1, 3, 300))
+        p_ptr, p_vocab, hidden = model.ptrMemDecoder(decoder_input, last_hidden)
+        print(p_ptr)
+        print(p_vocab)
+
     print(model)
 
 

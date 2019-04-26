@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-23 21:04:32
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-25 12:04:37
+# @Last Modified time: 2019-04-26 11:57:00
 
 import torch
 import torch.nn as nn
@@ -82,4 +82,5 @@ class DecoderMemNN(nn.Module):
             u_k = u[-1] + o_k
             u.append(u_k)
         p_ptr = prob_lg
+        # p_ptr, p_vocab 是 softmax 之前的值， 不是概率
         return p_ptr, p_vocab, hidden
