@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-23 20:59:04
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-27 21:53:49
+# @Last Modified time: 2019-04-28 17:25:03
 
 import torch
 import torch.nn as nn
@@ -57,12 +57,18 @@ class Mem2Seq(nn.Module):
                                     dropout=self.dropout,
                                     padding_idx=self.padding_idx)
 
-        self.criterion = nn.MSELoss()
+        if self.padding_idx is not None:
+            self.weight = torch.ones(self.vocab_size)
+            self.weight[self.padding_idx] = 0
+        else:
+            self.weight = None
+        self.nll_loss = NLLLoss(weight=self.weight,
+                                ignore_index=self.padding_idx,
+                                reduction='mean')
 
-        # Move models to GPU
         if self.use_gpu:
-            self.encoder.cuda()
-            self.decoder.cuda()
+            self.cuda()
+            self.weight = self.weight.cuda()
 
     def encode(self, inputs, hidden=None):
         outputs = Pack()
@@ -75,12 +81,13 @@ class Mem2Seq(nn.Module):
         tmp_len[tmp_len > 0] -= 2
         cue_inputs = inputs.cue[0][:, :, 1:-1], tmp_len
 
-        self.decoder.load_memory(inputs.cue[0][:, :, 1:-1].transpose(0, 1))
+        self.decoder.load_memory(inputs.cue[0][:, :, 1:-1])
 
         u = self.mem_encoder(cue_inputs, enc_hidden[-1])
 
         dec_init_state = self.decoder.initialize_state(
             hidden=u.unsqueeze(0),
+            cue_inputs=inputs.cue[0][:, :, 1:-1],
             attn_memory=enc_outputs if self.attn_mode else None,
             memory_lengths=lengths if self.attn_mode else None)
 
@@ -99,10 +106,28 @@ class Mem2Seq(nn.Module):
         """
         outputs, dec_init_state = self.encode(enc_inputs, hidden)
 
-        p_ptr, p_vocab, state, output = self.decoder(
-            dec_inputs, dec_init_state)
+        p_vocab, state = self.decoder(dec_inputs, dec_init_state)
         outputs.add(logits=p_vocab)
         return outputs
+
+    def collect_metrics(self, outputs, target):
+        """
+        collect_metrics
+        """
+        num_samples = target.size(0)
+        metrics = Pack(num_samples=num_samples)
+        loss = 0
+
+        logits = outputs.logits
+        scores = -self.nll_loss(logits, target, reduction=False)
+        nll = self.nll_loss(logits, target)
+        num_words = target.ne(self.padding_idx).sum().item()
+        acc = accuracy(logits, target, padding_idx=self.padding_idx)
+        metrics.add(nll=(nll, num_words), acc=acc)
+        loss += nll
+
+        metrics.add(loss=loss)
+        return metrics, scores
 
     def iterate(self, inputs, optimizer=None, grad_clip=None,
                 is_training=True, epoch=-1):

@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-23 21:04:32
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-27 21:57:25
+# @Last Modified time: 2019-04-28 17:15:20
 
 import torch
 import torch.nn as nn
@@ -46,7 +46,6 @@ class DecoderMemNN(nn.Module):
                                        mode=self.attn_mode,
                                        project=False)
             self.rnn_input_size += self.hidden_size
-            self.out_input_size += self.hidden_size
 
         self.softmax = nn.Softmax(dim=1)
         self.W = nn.Linear(self.embedding_dim, 1)
@@ -59,6 +58,7 @@ class DecoderMemNN(nn.Module):
 
     def initialize_state(self,
                          hidden,
+                         cue_inputs=None,
                          attn_memory=None,
                          attn_mask=None,
                          memory_lengths=None):
@@ -74,6 +74,7 @@ class DecoderMemNN(nn.Module):
 
         init_state = DecoderState(
             hidden=hidden,
+            cue_inputs=cue_inputs,
             attn_memory=attn_memory,
             attn_mask=attn_mask,
         )
@@ -104,6 +105,8 @@ class DecoderMemNN(nn.Module):
         output = Pack()
 
         embed_q = self.C[0](input).unsqueeze(1)  # b * e --> b * 1 * e
+        batch_size = input.size(0)
+
         rnn_input_list.append(embed_q)
 
         if self.attn_mode is not None:
@@ -117,18 +120,20 @@ class DecoderMemNN(nn.Module):
             output.add(attn=attn)
 
         rnn_input = torch.cat(rnn_input_list, dim=-1)
-        output, new_hidden = self.gru(embed_q.unsqueeze(0), last_hidden)
+        output, new_hidden = self.gru(rnn_input, last_hidden)
         state.hidden = new_hidden
 
         u = [new_hidden[0].squeeze()]
         for hop in range(self.max_hops):
             m_A = self.m_story[hop]
+            m_A = m_A[:batch_size]
             if(len(list(u[-1].size())) == 1):
                 u[-1] = u[-1].unsqueeze(0)  # used for bsz = 1.
             u_temp = u[-1].unsqueeze(1).expand_as(m_A)
             prob_lg = torch.sum(m_A * u_temp, 2)
             prob_p = self.softmax(prob_lg)
             m_C = self.m_story[hop + 1]
+            m_C = m_C[:batch_size]
 
             prob = prob_p.unsqueeze(2).expand_as(m_C)
             o_k = torch.sum(m_C * prob, 1)
@@ -141,9 +146,9 @@ class DecoderMemNN(nn.Module):
 
         if is_training:
             # p_ptr, p_vocab 是 softmax 之前的值， 不是概率
-            return p_ptr, p_vocab, state, output
+            return p_vocab, state, output
         else:
-            return prob_p, prob_v, state, output
+            return prob_v, state, output
 
     def forward(self, inputs, state):
         """
@@ -152,8 +157,16 @@ class DecoderMemNN(nn.Module):
         inputs, lengths = inputs
         batch_size, max_len = inputs.size()
 
-        out_inputs = inputs.new_zeros(
-            size=(batch_size, max_len, self.out_input_size),
+        # get the memory size
+        cue_inputs = state.cue_inputs
+        cue_size = cue_inputs.size(1)
+
+        # ptr_out_inputs = inputs.new_zeros(
+        #     size=(batch_size, max_len, cue_size),
+        #     dtype=torch.float)
+
+        vocab_out_inputs = inputs.new_zeros(
+            size=(batch_size, max_len, self.num_vocab),
             dtype=torch.float)
 
         # sort by lengths
@@ -167,15 +180,17 @@ class DecoderMemNN(nn.Module):
         for i, num_valid in enumerate(num_valid_list):
             dec_input = inputs[:num_valid, i]
             valid_state = state.slice_select(num_valid)
-            out_input, valid_state, _ = self.decode(
+            p_vocab, valid_state, _ = self.decode(
                 dec_input, valid_state, is_training=True)
             state.hidden[:, :num_valid] = valid_state.hidden
-            out_inputs[:num_valid, i] = out_input.squeeze(1)
+            # ptr_out_inputs[:num_valid, i] = p_ptr.squeeze(1)
+            vocab_out_inputs[:num_valid, i] = p_vocab.squeeze(1)
 
         # Resort
         _, inv_indices = indices.sort()
         state = state.index_select(inv_indices)
-        out_inputs = out_inputs.index_select(0, inv_indices)
+        # ptr_out_inputs = ptr_out_inputs.index_select(0, inv_indices)
+        vocab_out_inputs = vocab_out_inputs.index_select(0, inv_indices)
 
-        log_probs = self.output_layer(out_inputs)
+        log_probs = self.softmax(vocab_out_inputs)
         return log_probs, state
