@@ -2,12 +2,13 @@
 # @Author: Wei Li
 # @Date:   2019-04-24 10:29:03
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-26 12:05:14
+# @Last Modified time: 2019-04-27 17:00:10
 
 import argparse
 from torch.autograd import Variable
 
 from source.models.memnet import *
+from source.models.mem2seq import *
 from source.modules.encoders.mem_encoder import EncoderMemNN
 from source.modules.decoders.mem_decoder import DecoderMemNN
 
@@ -26,7 +27,7 @@ def main():
     global model
     config = model_config()
     if config.model == 'Mem2Seq':
-        model = globals()[config.model]()
+        model = globals()[config.model](10000, 300)
     elif config.model == 'MemNet':
         model = globals()[config.model](10000, 300, 800)
     elif config.model == 'EncoderMemNN':

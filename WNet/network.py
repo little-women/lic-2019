@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-24 16:59:34
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-26 16:02:50
+# @Last Modified time: 2019-04-27 21:44:34
 
 
 import os
@@ -12,6 +12,7 @@ import argparse
 import torch
 
 from source.models.memnet import MemNet
+from source.models.mem2seq import Mem2Seq
 from source.inputters.corpus import KnowledgeCorpus
 from source.utils.engine import Trainer
 from source.utils.generator import TopKGenerator
@@ -119,7 +120,10 @@ def main():
 
     # Model definition
     if config.model == 'Mem2Seq':
-        model = globals()[config.model]()
+        model = globals()[config.model](vocab_size=corpus.SRC.vocab_size,
+                                        embed_units=config.embed_size,
+                                        hidden_size=config.hidden_size,
+                                        padding_idx=corpus.padding_idx)
     elif config.model == 'MemNet':
         model = globals()[config.model](vocab_size=corpus.SRC.vocab_size,
                                         embed_units=config.embed_size,

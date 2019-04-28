@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-################################################################################
+##########################################################################
 #
 # Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
 #
-################################################################################
+##########################################################################
 """
 File: source/utils/engine.py
 """
@@ -26,6 +26,7 @@ class MetricsManager(object):
     """
     MetricsManager
     """
+
     def __init__(self):
         self.metrics_val = defaultdict(float)
         self.metrics_cum = defaultdict(float)
@@ -89,7 +90,8 @@ class MetricsManager(object):
             else:
                 val, num_words = val
 
-            metric_str = "{}-{:.3f}".format(key.upper(), val / self.num_samples)
+            metric_str = "{}-{:.3f}".format(key.upper(),
+                                            val / self.num_samples)
             metric_strs.append(metric_str)
 
             if num_words is not None:
@@ -120,6 +122,7 @@ class Trainer(object):
     """
     Trainer
     """
+
     def __init__(self,
                  model,
                  optimizer,
@@ -202,17 +205,18 @@ class Trainer(object):
             start_time = time.time()
             # Do a training iteration
             metrics, _ = self.model.iterate(inputs,
-                                         optimizer=self.optimizer,
-                                         grad_clip=self.grad_clip,
-                                         is_training=True,
-                                         epoch=self.epoch)
+                                            optimizer=self.optimizer,
+                                            grad_clip=self.grad_clip,
+                                            is_training=True,
+                                            epoch=self.epoch)
             elapsed = time.time() - start_time
 
             train_mm.update(metrics)
             self.batch_num += 1
 
             if batch_id % self.log_steps == 0:
-                message_prefix = "[Train][{:2d}][{}/{}]".format(self.epoch, batch_id, num_batches)
+                message_prefix = "[Train][{:2d}][{}/{}]".format(
+                    self.epoch, batch_id, num_batches)
                 metrics_message = train_mm.report_val()
                 message_posfix = "TIME-{:.2f}".format(elapsed)
                 self.logger.info("   ".join(
@@ -224,7 +228,8 @@ class Trainer(object):
                 self.logger.info(self.valid_start_message)
                 valid_mm, _ = evaluate(self.model, self.valid_iter)
 
-                message_prefix = "[Valid][{:2d}][{}/{}]".format(self.epoch, batch_id, num_batches)
+                message_prefix = "[Valid][{:2d}][{}/{}]".format(
+                    self.epoch, batch_id, num_batches)
                 metrics_message = valid_mm.report_cum()
                 self.logger.info("   ".join([message_prefix, metrics_message]))
 
@@ -341,7 +346,8 @@ def evaluate_generation(generator,
     report_message.append("Bleu-{:.4f}/{:.4f}".format(bleu_1, bleu_2))
 
     intra_dist1, intra_dist2, inter_dist1, inter_dist2 = distinct(hyps)
-    report_message.append("Inter_Dist-{:.4f}/{:.4f}".format(inter_dist1, inter_dist2))
+    report_message.append(
+        "Inter_Dist-{:.4f}/{:.4f}".format(inter_dist1, inter_dist2))
 
     # embed_metric = EmbeddingMetrics(field=generator.tgt_field)
     # ext_sim, avg_sim, greedy_sim = embed_metric.embed_sim(
@@ -394,4 +400,4 @@ def write_results(results, results_file):
                 #f.write("Predict: {} ({:.3f})\n".format(pred, score))
                 #f.write("{}\t{:.3f}\n".format(pred, score))
                 f.write("{}\n".format(pred))
-            #f.write("\n")
+            # f.write("\n")

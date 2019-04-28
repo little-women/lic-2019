@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-################################################################################
+##########################################################################
 #
 # Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
 #
-################################################################################
+##########################################################################
 """
 File: source/utils/generator.py
 """
@@ -20,6 +20,7 @@ class TopKGenerator(object):
     """
     TopKGenerator
     """
+
     def __init__(self,
                  model,
                  src_field,
@@ -86,7 +87,7 @@ class TopKGenerator(object):
         stored_predecessors = list()
         stored_emitted_symbols = list()
 
-        for t in range(1, self.max_length+1):
+        for t in range(1, self.max_length + 1):
             # Run the RNN one step forward
             output, dec_state, attn = self.model.decode(input_var, dec_state)
 
@@ -97,7 +98,7 @@ class TopKGenerator(object):
             sequence_scores = sequence_scores.unsqueeze(1).repeat(1, self.V)
             if self.length_average and t > 1:
                 sequence_scores = sequence_scores * \
-                    (1 - 1/t) + log_softmax_output / t
+                    (1 - 1 / t) + log_softmax_output / t
             else:
                 sequence_scores += log_softmax_output
 
@@ -116,7 +117,8 @@ class TopKGenerator(object):
 
             dec_state = dec_state.index_select(predecessors)
 
-            # Update sequence scores and erase scores for end-of-sentence symbol so that they aren't expanded
+            # Update sequence scores and erase scores for end-of-sentence
+            # symbol so that they aren't expanded
             stored_scores.append(sequence_scores.clone())
             eos_indices = input_var.data.eq(self.EOS)
             if eos_indices.nonzero().dim() > 0:
@@ -161,14 +163,16 @@ class TopKGenerator(object):
 
         t = self.max_length - 1
         # initialize the back pointer with the sorted order of the last step beams.
-        # add self.pos_index for indexing variable with b*k as the first dimension.
+        # add self.pos_index for indexing variable with b*k as the first
+        # dimension.
         t_predecessors = (
             sorted_idx + self.pos_index.expand_as(sorted_idx)).view(b * self.k)
 
         while t >= 0:
             # Re-order the variables with the back pointer
             current_symbol = symbols[t].index_select(0, t_predecessors)
-            # Re-order the back pointer of the previous step with the back pointer of the current step
+            # Re-order the back pointer of the previous step with the back
+            # pointer of the current step
             t_predecessors = predecessors[t].index_select(0, t_predecessors)
 
             # This tricky block handles dropped sequences that see EOS earlier.
@@ -190,7 +194,7 @@ class TopKGenerator(object):
             #
             eos_indices = symbols[t].data.eq(self.EOS).nonzero()
             if eos_indices.dim() > 0:
-                for i in range(eos_indices.size(0)-1, -1, -1):
+                for i in range(eos_indices.size(0) - 1, -1, -1):
                     # Indices of the EOS symbol for both variables
                     # with b*k as the first dimension, and b, k for
                     # the first two dimensions

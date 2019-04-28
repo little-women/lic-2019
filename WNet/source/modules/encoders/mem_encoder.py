@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-23 21:03:41
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-26 15:35:30
+# @Last Modified time: 2019-04-27 21:48:14
 
 import torch
 import torch.nn as nn
@@ -56,7 +56,7 @@ class EncoderMemNN(nn.Module):
             inputs, lengths = inputs, None
 
         u = [enc_hidden]
-        attns = []
+
         for hop in range(self.max_hops):
             embed_A = self.C[hop](
                 inputs.contiguous().view(inputs.size(0), -1).long())
@@ -67,8 +67,6 @@ class EncoderMemNN(nn.Module):
             attn = self.A[hop](query=u[-1].unsqueeze(1),
                                memory=m_A, mask=lengths.eq(0))
 
-            attns.append(attn)
-
             embed_C = self.C[
                 hop + 1](inputs.contiguous().view(inputs.size(0), -1).long())
             embed_C = embed_C.view(inputs.size() + (embed_C.size(-1),))
@@ -77,4 +75,4 @@ class EncoderMemNN(nn.Module):
             o_k = torch.bmm(attn, m_C).squeeze(1)
             u_k = u[-1] + o_k
             u.append(u_k)
-        return u_k, attns
+        return u_k
