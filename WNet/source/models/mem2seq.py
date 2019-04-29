@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-23 20:59:04
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-28 17:25:03
+# @Last Modified time: 2019-04-29 15:10:05
 
 import torch
 import torch.nn as nn
@@ -130,7 +130,7 @@ class Mem2Seq(nn.Module):
         return metrics, scores
 
     def iterate(self, inputs, optimizer=None, grad_clip=None,
-                is_training=True, epoch=-1):
+                is_training=False, epoch=-1):
         """
         iterate
         """

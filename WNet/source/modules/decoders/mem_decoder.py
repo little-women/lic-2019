@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-23 21:04:32
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-28 17:15:20
+# @Last Modified time: 2019-04-29 16:35:28
 
 import torch
 import torch.nn as nn
@@ -48,6 +48,7 @@ class DecoderMemNN(nn.Module):
             self.rnn_input_size += self.hidden_size
 
         self.softmax = nn.Softmax(dim=1)
+        self.log_softmax = nn.LogSoftmax(dim=-1)
         self.W = nn.Linear(self.embedding_dim, 1)
         self.W1 = nn.Linear(2 * self.embedding_dim, self.num_vocab)
         self.gru = nn.GRU(input_size=self.rnn_input_size,
@@ -131,7 +132,7 @@ class DecoderMemNN(nn.Module):
                 u[-1] = u[-1].unsqueeze(0)  # used for bsz = 1.
             u_temp = u[-1].unsqueeze(1).expand_as(m_A)
             prob_lg = torch.sum(m_A * u_temp, 2)
-            prob_p = self.softmax(prob_lg)
+            prob_p = self.log_softmax(prob_lg)
             m_C = self.m_story[hop + 1]
             m_C = m_C[:batch_size]
 
@@ -139,7 +140,7 @@ class DecoderMemNN(nn.Module):
             o_k = torch.sum(m_C * prob, 1)
             if (hop == 0):
                 p_vocab = self.W1(torch.cat((u[0], o_k), 1))
-                prob_v = self.softmax(p_vocab)
+                prob_v = self.log_softmax(p_vocab)
             u_k = u[-1] + o_k
             u.append(u_k)
         p_ptr = prob_lg
@@ -192,5 +193,5 @@ class DecoderMemNN(nn.Module):
         # ptr_out_inputs = ptr_out_inputs.index_select(0, inv_indices)
         vocab_out_inputs = vocab_out_inputs.index_select(0, inv_indices)
 
-        log_probs = self.softmax(vocab_out_inputs)
+        log_probs = self.log_softmax(vocab_out_inputs)
         return log_probs, state
