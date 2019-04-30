@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-################################################################################
+##########################################################################
 #
 # Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
 #
-################################################################################
+##########################################################################
 """
 File: source/utils/misc.py
 """
@@ -17,6 +17,7 @@ class Pack(dict):
     """
     Pack
     """
+
     def __getattr__(self, name):
         return self.get(name)
 
@@ -63,6 +64,19 @@ def sequence_mask(lengths, max_len=None):
     mask = mask.lt(lengths.unsqueeze(-1))
     #mask = mask.repeat(*lengths.size(), 1).lt(lengths.unsqueeze(-1))
     return mask
+
+
+def convert_dist(attn_dist, source, target):
+    """
+    attn_dist: batch_size, seq_len=1, m_len
+    source: batch_size, m_len
+
+    return: batch_size, seq_len, vocab_size
+    """
+    batch_size, seq_len, _ = attn_dist.size()
+    for i in range(batch_size):
+        target[i, :, source[i]] += attn_dist[i, :, :]
+    return target
 
 
 def max_lens(X):

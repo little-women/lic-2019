@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-24 16:59:34
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-27 21:44:34
+# @Last Modified time: 2019-04-30 17:11:51
 
 
 import os
@@ -13,6 +13,7 @@ import torch
 
 from source.models.memnet import MemNet
 from source.models.mem2seq import Mem2Seq
+from source.models.pgnet import PointerNet
 from source.inputters.corpus import KnowledgeCorpus
 from source.utils.engine import Trainer
 from source.utils.generator import TopKGenerator
@@ -135,6 +136,17 @@ def main():
                                         dropout=config.dropout,
                                         use_gpu=config.use_gpu)
 
+    elif config.model == 'PointerNet':
+        model = globals()[config.model](vocab_size=corpus.SRC.vocab_size,
+                                        embed_units=config.embed_size,
+                                        hidden_size=config.hidden_size,
+                                        padding_idx=corpus.padding_idx,
+                                        num_layers=config.num_layers,
+                                        bidirectional=config.bidirectional,
+                                        attn_mode='mlp',
+                                        dropout=config.dropout,
+                                        use_gpu=config.use_gpu)
+
     # Generator definition
     generator = TopKGenerator(model=model,
                               src_field=corpus.SRC,
@@ -178,13 +190,19 @@ def main():
         # Save directory
         if not os.path.exists(config.save_dir):
             os.makedirs(config.save_dir)
+
+        # Save directory for each model
+        model_save_dir = os.path.join(config.save_dir, config.model)
+        if not os.path.exists(model_save_dir):
+            os.makedirs(model_save_dir)
+
         # Logger definition
         logger = logging.getLogger(__name__)
         logging.basicConfig(level=logging.DEBUG, format="%(message)s")
-        fh = logging.FileHandler(os.path.join(config.save_dir, "train.log"))
+        fh = logging.FileHandler(os.path.join(model_save_dir, "train.log"))
         logger.addHandler(fh)
         # Save config
-        params_file = os.path.join(config.save_dir, "params.json")
+        params_file = os.path.join(model_save_dir, "params.json")
         with open(params_file, 'w') as fp:
             json.dump(config.__dict__, fp, indent=4, sort_keys=True)
         print("Saved params to '{}'".format(params_file))
@@ -199,7 +217,7 @@ def main():
                           generator=generator,
                           valid_metric_name="-loss",
                           num_epochs=config.num_epochs,
-                          save_dir=config.save_dir,
+                          save_dir=model_save_dir,
                           log_steps=config.log_steps,
                           valid_steps=config.valid_steps,
                           grad_clip=config.grad_clip,
@@ -211,7 +229,7 @@ def main():
         logger.info("Training done!")
         # Test
         logger.info("")
-        trainer.load(os.path.join(config.save_dir, "best"))
+        trainer.load(os.path.join(model_save_dir, "best"))
         logger.info("Testing starts ...")
         metrics, scores = evaluate(model, test_iter)
         logger.info(metrics.report_cum())
