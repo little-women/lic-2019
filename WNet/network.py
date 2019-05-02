@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-24 16:59:34
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-30 17:11:51
+# @Last Modified time: 2019-05-02 17:53:19
 
 
 import os
@@ -55,12 +55,12 @@ def model_config():
     # Training / Testing
     train_arg = parser.add_argument_group("Training")
     train_arg.add_argument("--optimizer", type=str, default="Adam")
-    train_arg.add_argument("--lr", type=float, default=0.00005)
+    train_arg.add_argument("--lr", type=float, default=0.0001)
     train_arg.add_argument("--grad_clip", type=float, default=5.0)
-    train_arg.add_argument("--dropout", type=float, default=0.3)
+    train_arg.add_argument("--dropout", type=float, default=0.5)
     train_arg.add_argument("--num_epochs", type=int, default=20)
     train_arg.add_argument("--pretrain_epoch", type=int, default=5)
-    train_arg.add_argument("--lr_decay", type=float, default=None)
+    train_arg.add_argument("--lr_decay", type=float, default=1e-8)
     train_arg.add_argument("--use_embed", type=str2bool, default=True)
     train_arg.add_argument("--weight_control", type=str2bool, default=True)
 
@@ -179,7 +179,7 @@ def main():
                 corpus.TGT.embeddings, scale=0.03)
         # Optimizer definition
         optimizer = getattr(torch.optim, config.optimizer)(
-            model.parameters(), lr=config.lr)
+            model.parameters(), lr=config.lr, weight_decay=0.005)
         # Learning rate scheduler
         if config.lr_decay is not None and 0 < config.lr_decay < 1.0:
             lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer,
