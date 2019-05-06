@@ -50,11 +50,11 @@ def preprocessing_for_one_conversation(text,
     chat_path_str = ' '.join([' '.join(spo) for spo in goal])
     knowledge_str1 = ' '.join([' '.join(spo) for spo in knowledge])
     knowledge_str2 = '\1'.join([' '.join(spo) for spo in knowledge])
-    history_str = ' '.join(history)
+    history_str = ':'.join(history)
 
     # src = chat_path_str + " " + knowledge_str1 + " : " + history_str
-    # src = chat_path_str + " : " + history_str
-    src = ' '.join(spo for spo in goal[0]) + " : " + history_str
+    src = chat_path_str + " : " + history_str
+    # src = ' '.join(spo for spo in goal[0]) + " : " + history_str
     model_text = '\t'.join([src, response, knowledge_str2])
 
     if topic_generalization:

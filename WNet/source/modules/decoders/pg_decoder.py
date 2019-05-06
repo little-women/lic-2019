@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-30 10:35:53
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-30 23:28:32
+# @Last Modified time: 2019-05-05 19:36:21
 
 import torch
 import torch.nn as nn
@@ -196,6 +196,7 @@ class PointerDecoder(nn.Module):
 
             log_prob = torch.log(weighted_prob + 1e-10)
             return log_prob, state, output
+            # return prob_vocab, p_mode, attn_f, attn_h, state.fact, state.hist
 
     def forward(self, inputs, state):
         """

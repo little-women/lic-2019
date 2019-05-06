@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-14 15:49:39
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-17 17:24:48
+# @Last Modified time: 2019-05-05 22:44:14
 
 from py2neo import Graph, Node, Relationship
 import json
@@ -60,3 +60,24 @@ for knowledge, goal in zip(knowledges, goals):
     i += 1
     if i > 5:
         break
+
+
+# 读取对话
+def readDialogues(session_file):
+    sessions = []
+    with open(session_file, 'r', encoding='utf-8') as f:
+        for i, line in enumerate(f):
+            session = json.loads(line.strip())
+            sessions.append(session['conversation'])
+    return sessions
+
+
+def writeDialogues(file, sessions):
+    with open(file, 'w', encoding='utf-8') as f:
+        for session in sessions:
+            f.write('\n'.join(session))
+            f.write('\n\n')
+
+
+# writeDialogues('../data/resource/sess.dev.txt',
+#                readDialogues('../data/resource/dev.txt'))

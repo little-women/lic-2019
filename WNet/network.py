@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-24 16:59:34
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-05-02 17:53:19
+# @Last Modified time: 2019-05-06 21:53:45
 
 
 import os
@@ -14,7 +14,9 @@ import torch
 from source.models.memnet import MemNet
 from source.models.mem2seq import Mem2Seq
 from source.models.pgnet import PointerNet
+from source.models.hseq2seq import HSeq2Seq
 from source.inputters.corpus import KnowledgeCorpus
+from source.inputters.corpus2 import HieraSrcCorpus
 from source.utils.engine import Trainer
 from source.utils.generator import TopKGenerator
 from source.utils.engine import evaluate, evaluate_generation
@@ -38,6 +40,7 @@ def model_config():
     # Network
     net_arg = parser.add_argument_group("Network")
     net_arg.add_argument("--model", type=str, default='MemNet')
+    net_arg.add_argument("--corpus", type=str, default='KnowledgeCorpus')
     net_arg.add_argument("--embed_size", type=int, default=300)
     net_arg.add_argument("--hidden_size", type=int, default=800)
     net_arg.add_argument("--bidirectional", type=str2bool, default=True)
@@ -55,12 +58,12 @@ def model_config():
     # Training / Testing
     train_arg = parser.add_argument_group("Training")
     train_arg.add_argument("--optimizer", type=str, default="Adam")
-    train_arg.add_argument("--lr", type=float, default=0.0001)
+    train_arg.add_argument("--lr", type=float, default=0.00005)
     train_arg.add_argument("--grad_clip", type=float, default=5.0)
     train_arg.add_argument("--dropout", type=float, default=0.5)
     train_arg.add_argument("--num_epochs", type=int, default=20)
     train_arg.add_argument("--pretrain_epoch", type=int, default=5)
-    train_arg.add_argument("--lr_decay", type=float, default=1e-8)
+    train_arg.add_argument("--lr_decay", type=float, default=None)
     train_arg.add_argument("--use_embed", type=str2bool, default=True)
     train_arg.add_argument("--weight_control", type=str2bool, default=True)
 
@@ -100,15 +103,14 @@ def main():
     device = config.gpu
     torch.cuda.set_device(device)
     # Data definition
-    corpus = KnowledgeCorpus(data_dir=config.data_dir,
-                             data_prefix=config.data_prefix,
-                             min_freq=0,
-                             max_vocab_size=config.max_vocab_size,
-                             min_len=config.min_len,
-                             max_len=config.max_len,
-                             embed_file=config.embed_file,
-                             with_label=config.with_label,
-                             share_vocab=config.share_vocab)
+    corpus = globals()[config.corpus](data_dir=config.data_dir,
+                                      data_prefix=config.data_prefix,
+                                      min_freq=0,
+                                      max_vocab_size=config.max_vocab_size,
+                                      min_len=config.min_len,
+                                      max_len=config.max_len,
+                                      embed_file=config.embed_file,
+                                      share_vocab=config.share_vocab)
     corpus.load()
     if config.test and config.ckpt:
         corpus.reload(data_type='test')
@@ -146,6 +148,12 @@ def main():
                                         attn_mode='mlp',
                                         dropout=config.dropout,
                                         use_gpu=config.use_gpu)
+    elif config.model == 'HSeq2Seq':
+        model = globals()[config.model](src_vocab_size=corpus.SRC.vocab_size,
+                                        tgt_vocab_size=corpus.TGT.vocab_size,
+                                        embed_size=config.embed_size,
+                                        hidden_size=config.hidden_size,
+                                        padding_idx=corpus.padding_idx)
 
     # Generator definition
     generator = TopKGenerator(model=model,
@@ -179,7 +187,7 @@ def main():
                 corpus.TGT.embeddings, scale=0.03)
         # Optimizer definition
         optimizer = getattr(torch.optim, config.optimizer)(
-            model.parameters(), lr=config.lr, weight_decay=0.005)
+            model.parameters(), lr=config.lr, weight_decay=0.01)
         # Learning rate scheduler
         if config.lr_decay is not None and 0 < config.lr_decay < 1.0:
             lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer,
