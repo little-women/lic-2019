@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-23 20:59:04
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-29 15:10:05
+# @Last Modified time: 2019-05-08 10:17:01
 
 import torch
 import torch.nn as nn
@@ -18,7 +18,7 @@ from source.utils.metrics import accuracy
 from source.utils.misc import Pack
 
 
-class Mem2Seq(nn.Module):
+class Mem2Seq(BaseModel):
 
     def __init__(self, vocab_size, hidden_size, embed_units, max_hop=3,
                  padding_idx=None, n_layers=1, attn_mode='mlp',

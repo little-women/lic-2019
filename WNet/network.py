@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-24 16:59:34
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-05-06 21:53:45
+# @Last Modified time: 2019-05-07 14:44:48
 
 
 import os
@@ -58,7 +58,7 @@ def model_config():
     # Training / Testing
     train_arg = parser.add_argument_group("Training")
     train_arg.add_argument("--optimizer", type=str, default="Adam")
-    train_arg.add_argument("--lr", type=float, default=0.00005)
+    train_arg.add_argument("--lr", type=float, default=0.00001)
     train_arg.add_argument("--grad_clip", type=float, default=5.0)
     train_arg.add_argument("--dropout", type=float, default=0.5)
     train_arg.add_argument("--num_epochs", type=int, default=20)
