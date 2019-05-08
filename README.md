@@ -24,4 +24,5 @@
 **Maybe?**
 
 1. 引入 隐变量（latent variable) 表示 聊天 goal 和 path 状态
+2. 对话状态向量和掩码
 
