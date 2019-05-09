@@ -9,3 +9,13 @@
 | CCM | | | |||
 | TA-Seq2Seq | | | |||
 
+
+|Baseline | F1           | BLEU 1       | BLEU 2       |
+| :----------: | ------------ | ------------ | :----------: |
+| Nothing changed| 35.13 |0.333|0.194|
+| use_gs 改为 True | 34.99 | 0.314 | 0.186 |
+| knowledge 等于最大 attn 的那个<br />use_posterior | 34.05<br />37.63 | 0.314<br />0.357 | 0.181<br />0.212 |
+| knowledge 都等于 weighted_cue（KL 呈上升趋势。。。）<br />use_posterior | 33.97<br />33.97 | 0.294<br />0.294 | 0.177<br />0.177 |
+
+
+

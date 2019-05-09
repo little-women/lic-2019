@@ -141,7 +141,10 @@ class Corpus(object):
         for raw_data in tqdm(data):
             example = {}
             for name, strings in raw_data.items():
-                example[name] = self.fields[name].numericalize(strings)
+                if isinstance(self.fields[name], TextField):
+                    example[name] = self.fields[name].numericalize(strings)
+                else:
+                    example[name] = strings
             examples.append(example)
         if self.sort_fn is not None:
             print("Sorting examples ...")

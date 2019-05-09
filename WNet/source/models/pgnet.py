@@ -2,7 +2,7 @@
 # @Author: Wei Li
 # @Date:   2019-04-29 20:43:20
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-04-30 23:18:25
+# @Last Modified time: 2019-05-09 20:42:15
 
 import torch
 import torch.nn as nn
@@ -22,7 +22,7 @@ class PointerNet(BaseModel):
 
     def __init__(self, vocab_size, embed_units, hidden_size,
                  padding_idx=None, num_layers=1, bidirectional=True,
-                 attn_mode='mlp', dropout=0.0,
+                 attn_mode='mlp', dropout=0.0, with_bridge=True,
                  use_gpu=False):
         super(PointerNet, self).__init__()
 
@@ -36,6 +36,7 @@ class PointerNet(BaseModel):
         self.dropout = dropout
 
         self.attn_mode = attn_mode
+        self.with_bridge = with_bridge
         self.use_gpu = use_gpu
 
         embedder = Embedder(num_embeddings=self.vocab_size,
@@ -62,14 +63,20 @@ class PointerNet(BaseModel):
                                       attn_mode=self.attn_mode,
                                       dropout=self.dropout)
 
+        if self.with_bridge:
+            self.bridge = nn.Sequential(
+                nn.Linear(self.hidden_size, self.hidden_size), nn.Tanh())
+
         if self.padding_idx is not None:
             self.weight = torch.ones(self.vocab_size)
             self.weight[self.padding_idx] = 0
         else:
             self.weight = None
+
         self.nll_loss = NLLLoss(weight=self.weight,
                                 ignore_index=self.padding_idx,
                                 reduction='mean')
+        self.kl_loss = torch.nn.KLDivLoss(size_average=True)
 
         if self.use_gpu:
             self.cuda()
@@ -81,6 +88,9 @@ class PointerNet(BaseModel):
         # (batch_size, seq_length, hidden_size*num_directions)
         # (num_layers, batch_size, num_directions * hidden_size)
         hist_outputs, hist_hidden = self.hist_encoder(hist_inputs, hidden)
+
+        if self.with_bridge:
+            hist_hidden = self.bridge(hist_hidden)
 
         # knowledge
         batch_size, sent_num, sent = inputs.cue[0].size()
