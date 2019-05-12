@@ -10,6 +10,8 @@
 
    ​     或都等于 weighted_cue 呢？(没有偏差，但是训练 KL loss 也很大)
 
+   ​     或都使用 Gumbel Softmax 采样呢？
+
 2. Baseline 选取出 k 后，decoder 的时候 怎么利用 k  的？
 
    **Re:** 当作 rnn 输入，类似 y. 
