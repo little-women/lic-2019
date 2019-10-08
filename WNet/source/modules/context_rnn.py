@@ -2,10 +2,10 @@
 # @Author: Wei Li
 # @Date:   2019-05-13 20:15:00
 # @Last Modified by:   liwei
-# @Last Modified time: 2019-05-13 20:26:48
+# @Last Modified time: 2019-05-14 16:33:41
 import torch
 import torch.nn as nn
-
+from source.modules.embedder import Embedder
 
 def _cuda(x, use_gpu=False):
     if use_gpu:
@@ -25,7 +25,7 @@ class ContextRNN(nn.Module):
         self.dropout = dropout
         self.dropout_layer = nn.Dropout(dropout)
         self.padding_idx = padding_idx
-        self.embedding = nn.Embedding(
+        self.embedding = Embedder(
             input_size, hidden_size, padding_idx=self.padding_idx)
         self.gru = nn.GRU(hidden_size, hidden_size, n_layers,
                           dropout=dropout, bidirectional=True)
@@ -44,6 +44,7 @@ class ContextRNN(nn.Module):
         embedded = self.embedding(
             input_seqs.contiguous().view(input_seqs.size(0), -1).long())
         embedded = embedded.view(input_seqs.size() + (embedded.size(-1),))
+        # batch_size, memory_length, embedding_dim
         embedded = torch.sum(embedded, 2).squeeze(2)
         embedded = self.dropout_layer(embedded)
         hidden = self.get_state(input_seqs.size(1))
